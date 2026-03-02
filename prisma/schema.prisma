@@ -1,0 +1,131 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN_CABANG
+  PEMBIMBING
+  JAMAAH
+  KELUARGA
+}
+
+enum SubscriptionPlan {
+  BASIC
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+model Tenant {
+  id                String           @id @default(uuid())
+  name              String
+  slug              String           @unique
+  subscription_plan SubscriptionPlan @default(BASIC)
+  max_jamaah        Int              @default(200)
+  is_active         Boolean          @default(true)
+  created_at        DateTime         @default(now())
+  updated_at        DateTime         @updatedAt
+
+  users         User[]
+  jamaah        Jamaah[]
+  promos        Promo[]
+  tracking_logs TrackingLog[]
+  branches      Branch[]
+
+  @@map("tenants")
+}
+
+model Branch {
+  id         String   @id @default(uuid())
+  tenant_id  String
+  name       String
+  address    String?
+  phone      String?
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  tenant Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  users  User[]
+  jamaah Jamaah[]
+
+  @@map("branches")
+}
+
+model User {
+  id         String   @id @default(uuid())
+  tenant_id  String
+  branch_id  String?
+  name       String
+  email      String   @unique
+  password   String
+  role       Role     @default(JAMAAH)
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  tenant Tenant  @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  branch Branch? @relation(fields: [branch_id], references: [id], onDelete: SetNull)
+
+  @@map("users")
+}
+
+model Jamaah {
+  id              String   @id @default(uuid())
+  tenant_id       String
+  branch_id       String?
+  full_name       String
+  passport_number String
+  phone           String
+  email           String?
+  address         String?
+  status          String   @default("active")
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  tenant        Tenant        @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  branch        Branch?       @relation(fields: [branch_id], references: [id], onDelete: SetNull)
+  tracking_logs TrackingLog[]
+
+  @@map("jamaah")
+}
+
+model Promo {
+  id                  String    @id @default(uuid())
+  title               String
+  description         String?
+  banner_image        String?
+  discount_percentage Int?
+  start_date          DateTime?
+  end_date            DateTime?
+  tenant_id           String?
+  is_featured         Boolean   @default(false)
+  is_active           Boolean   @default(true)
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+
+  tenant Tenant? @relation(fields: [tenant_id], references: [id], onDelete: SetNull)
+
+  @@map("promos")
+}
+
+model TrackingLog {
+  id         String   @id @default(uuid())
+  tenant_id  String
+  jamaah_id  String
+  latitude   Float
+  longitude  Float
+  status     String   @default("active")
+  created_at DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  jamaah Jamaah @relation(fields: [jamaah_id], references: [id], onDelete: Cascade)
+
+  @@map("tracking_logs")
+}
